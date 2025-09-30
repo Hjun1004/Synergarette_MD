@@ -61,66 +61,100 @@
     </script>
 
     <script>
-      (function () {
-        const ANDROID_PACKAGE = "com.shinhan.sbanking";
-        const PLAY = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
-        const IOS_STORE = "https://apps.apple.com/kr/app/id357484932"; // 신한SOL(개인)
-        const DEEPLINK = "shinhansol://"; // 필요시 shinhansol://transfer 테스트
-    
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isMobile = isAndroid || isIOS;
-    
-        function openAndroid() {
-          const intentUrl = `intent://open#Intent;scheme=shinhansol;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(PLAY)};end`;
-          const start = Date.now();
-    
-          const toStore = () => { if (Date.now() - start < 1800) location.href = PLAY; };
-    
-          // 페이지 가시성으로 “앱 전환 성공” 감지 → 성공 시 폴백 중단
-          const onVisibility = () => {
-            document.removeEventListener("visibilitychange", onVisibility);
-            // 보통 앱 전환되면 hidden으로 바뀜
-          };
-          document.addEventListener("visibilitychange", onVisibility);
-    
-          // 1) 딥링크 먼저
-          location.href = DEEPLINK;
-    
-          // 2) 잠시 후에도 전환 없으면 intent로 재시도 → 그래도 실패하면 스토어
-          setTimeout(() => {
-            try { location.href = intentUrl; } catch(e) { toStore(); }
-          }, 700);
-    
-          // 3) 최종 폴백
-          setTimeout(toStore, 1600);
-        }
-    
-        function openIOS() {
-          const start = Date.now();
-    
-          const onVisibility = () => {
-            // 앱으로 전환되면 보통 페이지가 background 처리됨
-            document.removeEventListener("visibilitychange", onVisibility);
-          };
-          document.addEventListener("visibilitychange", onVisibility);
-    
-          // 1) 딥링크
-          location.href = DEEPLINK;
-    
-          // 2) 전환 없으면 App Store
-          setTimeout(() => {
-            if (Date.now() - start < 1800) location.href = IOS_STORE;
-          }, 1500);
-        }
-    
-        document.getElementById("open-sol-btn").addEventListener("click", function () {
-          if (!isMobile) return alert("모바일 기기에서 열어주세요.");
-          if (isAndroid) return openAndroid();
-          if (isIOS) return openIOS();
-          location.href = DEEPLINK;
-        });
-      })();
+        (function () {
+          const ANDROID_PACKAGE = "com.shinhan.sbanking";
+          const PLAY = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
+          const INTENT = `intent://open#Intent;scheme=shinhansol;package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(PLAY)};end`;
+          const DEEPLINK = "shinhansol://"; // 필요시 "shinhansol://transfer" 로 교체
+        
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+          function openAndroid({ withFallback = true } = {}) {
+            const start = Date.now();
+            let hidden = false;
+            let fallbackTimer;
+        
+            const cancelFallback = () => {
+              hidden = true;             // 앱으로 전환되면 hidden=true
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+              removeGuards();
+            };
+        
+            const removeGuards = () => {
+              document.removeEventListener("visibilitychange", onVisibility);
+              window.removeEventListener("pagehide", cancelFallback);
+              window.removeEventListener("blur", cancelFallback);
+            };
+        
+            const onVisibility = () => {
+              if (document.visibilityState === "hidden") cancelFallback();
+            };
+        
+            document.addEventListener("visibilitychange", onVisibility);
+            window.addEventListener("pagehide", cancelFallback);
+            window.addEventListener("blur", cancelFallback);
+        
+            // 1) Android에선 intent를 먼저 시도 (Chrome 권장)
+            location.href = INTENT;
+        
+            if (!withFallback) {
+              // 폴백 비활성: 앱 없으면 그냥 아무 변화 없게
+              setTimeout(removeGuards, 2000);
+              return;
+            }
+        
+            // 2) 폴백: 여전히 페이지가 보이고(=앱 전환 실패), 시간이 많이 안 지났을 때만 스토어로
+            fallbackTimer = setTimeout(() => {
+              const elapsed = Date.now() - start;
+              const stillVisible = document.visibilityState === "visible";
+              if (!hidden && stillVisible && elapsed < 1800) location.href = PLAY;
+              removeGuards();
+            }, 1200);
+          }
+        
+          function openIOS({ withFallback = true } = {}) {
+            const start = Date.now();
+            let fallbackTimer;
+        
+            const cancel = () => {
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+              document.removeEventListener("visibilitychange", onVisibility);
+              window.removeEventListener("pagehide", cancel);
+              window.removeEventListener("blur", cancel);
+            };
+            const onVisibility = () => {
+              if (document.visibilityState === "hidden") cancel();
+            };
+            document.addEventListener("visibilitychange", onVisibility);
+            window.addEventListener("pagehide", cancel);
+            window.addEventListener("blur", cancel);
+        
+            // 1) 딥링크
+            location.href = DEEPLINK;
+        
+            if (!withFallback) {
+              setTimeout(cancel, 2000);
+              return;
+            }
+        
+            // 2) 폴백
+            fallbackTimer = setTimeout(() => {
+              const elapsed = Date.now() - start;
+              const stillVisible = document.visibilityState === "visible";
+              if (stillVisible && elapsed < 1800) {
+                location.href = "https://apps.apple.com/kr/app/id357484932"; // 신한 SOL뱅크
+              }
+              cancel();
+            }, 1500);
+          }
+        
+          document.getElementById("open-sol-btn").addEventListener("click", () => {
+            if (isAndroid) return openAndroid({ withFallback: true });
+            if (isIOS) return openIOS({ withFallback: true });
+            alert("모바일 기기에서 열어주세요.");
+          });
+        })();
     </script>
     
     <p style="margin-top: 2em; color: gray;">※ 모바일에서만 작동합니다. 앱이 설치되어 있어야 합니다.</p>
