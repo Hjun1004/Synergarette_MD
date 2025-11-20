@@ -23,7 +23,8 @@
     <!-- <a href="shinhan-sbank://" class="btn">신한은행으로 송금하기</a><br> -->
     <button class="btn" id="open-sol-btn">신한 SOL 실행하기</button><br>
     <a href="#" onclick="appLink(); return false;"  class="btn">국민은행으로 송금하기</a><br>
-    <a href="toss://send?accountNo=12345678901234&bankCode=88" class="btn">토스로 송금하기</a>
+    <!-- <a href="toss://send?accountNo=12345678901234&bankCode=88" class="btn">토스로 송금하기</a> -->
+    <button id="open-toss-btn">토스 앱 열기 / 송금하기</button>
 
     <script>
         function appLink() {
@@ -153,6 +154,72 @@
             if (isAndroid) return openAndroid({ withFallback: true });
             if (isIOS) return openIOS({ withFallback: true });
             alert("모바일 기기에서 열어주세요.");
+          });
+        })();
+    </script>
+
+    <script>
+        (function(){
+          const ANDROID_PLAY = "https://play.google.com/store/apps/details?id=im.toss.android"; // 토스 Android 패키지명 예시
+          const IOS_STORE  = "https://apps.apple.com/kr/app/id947957261"; // 토스 iOS App ID 예시
+        
+          // 앱 스킴: 토스 내부 경로에 맞게 조정 필요
+          const DEEPLINK = "intoss://toss/pay"; // 혹은 "intoss://"만으로 앱 실행 가능성 있음
+        
+          const isAndroid = /Android/i.test(navigator.userAgent);
+          const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+          function openAndroid(){
+            const start = Date.now();
+            let fallbackTimer;
+        
+            const cancelFallback = () => {
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+              document.removeEventListener("visibilitychange", onVis);
+            };
+            const onVis = () => {
+              if (document.visibilityState === "hidden") cancelFallback();
+            };
+            document.addEventListener("visibilitychange", onVis);
+        
+            // 앱 스킴 호출
+            window.location.href = DEEPLINK;
+        
+            fallbackTimer = setTimeout(()=>{
+              // 아직 페이지가 보이고 앱 전환 안 됐으면 Play 스토어
+              if (document.visibilityState === "visible" && (Date.now() - start) < 2000){
+                window.location.href = ANDROID_PLAY;
+              }
+              cancelFallback();
+            }, 1500);
+          }
+        
+          function openIOS(){
+            const start = Date.now();
+            let fallbackTimer;
+            const cancel = () => {
+              if (fallbackTimer) clearTimeout(fallbackTimer);
+              document.removeEventListener("visibilitychange", onVis);
+            };
+            const onVis = () => {
+              if (document.visibilityState === "hidden") cancel();
+            };
+            document.addEventListener("visibilitychange", onVis);
+        
+            window.location.href = DEEPLINK;
+        
+            fallbackTimer = setTimeout(()=>{
+              if (document.visibilityState === "visible" && (Date.now() - start) < 2000){
+                window.location.href = IOS_STORE;
+              }
+              cancel();
+            }, 1500);
+          }
+        
+          document.getElementById("open-toss-btn").addEventListener("click", ()=>{
+            if (isAndroid) openAndroid();
+            else if (isIOS) openIOS();
+            else alert("모바일 기기에서 열어주세요.");
           });
         })();
     </script>
