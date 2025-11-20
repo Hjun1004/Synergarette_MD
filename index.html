@@ -267,47 +267,53 @@
     </script>
 
     <script>
-        (function(){
+        (function () {
+          // 부산은행 모바일뱅킹
           const ANDROID_PLAY = "https://play.google.com/store/apps/details?id=kr.co.busanbank.mbp";
           const IOS_STORE    = "https://apps.apple.com/kr/app/id1445137607";
         
-          const DEEPLINK = "busanbank://";  // 앱 스킴, 동작 안 될 수도 있음
+          // 딥링크 스킴 (추정값이라 실제로는 안 먹을 수 있음)
+          const DEEPLINK = "busanbank://";
         
           const isAndroid = /Android/i.test(navigator.userAgent);
           const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         
-          function openAndroid({ withFallback = true } = {}) {
+          function openAndroid(withFallback = true) {
             const start = Date.now();
             let fallbackTimer;
         
-            const cancelFallback = () => {
+            const cancel = () => {
               if (fallbackTimer) clearTimeout(fallbackTimer);
               document.removeEventListener("visibilitychange", onVis);
             };
             const onVis = () => {
-              if (document.visibilityState === "hidden") cancelFallback();
+              if (document.visibilityState === "hidden") cancel(); // 앱으로 전환되면 폴백 취소
             };
             document.addEventListener("visibilitychange", onVis);
         
-            // 앱 스킴 호출
+            // 1) 앱 실행 시도
             window.location.href = DEEPLINK;
         
             if (!withFallback) {
-              setTimeout(cancelFallback, 2000);
+              setTimeout(cancel, 2000);
               return;
             }
         
-            fallbackTimer = setTimeout(()=>{
-              if (document.visibilityState === "visible" && (Date.now() - start) < 1800) {
+            // 2) 안 열리면 Play 스토어(웹 → 앱스토어로 넘어감)
+            fallbackTimer = setTimeout(() => {
+              const stillVisible = document.visibilityState === "visible";
+              const elapsed      = Date.now() - start;
+              if (stillVisible && elapsed < 1800) {
                 window.location.href = ANDROID_PLAY;
               }
-              cancelFallback();
+              cancel();
             }, 1200);
           }
         
-          function openIOS({ withFallback = true } = {}) {
+          function openIOS(withFallback = true) {
             const start = Date.now();
             let fallbackTimer;
+        
             const cancel = () => {
               if (fallbackTimer) clearTimeout(fallbackTimer);
               document.removeEventListener("visibilitychange", onVis);
@@ -317,6 +323,7 @@
             };
             document.addEventListener("visibilitychange", onVis);
         
+            // 1) 앱 실행 시도
             window.location.href = DEEPLINK;
         
             if (!withFallback) {
@@ -324,18 +331,21 @@
               return;
             }
         
-            fallbackTimer = setTimeout(()=>{
-              if (document.visibilityState === "visible" && (Date.now() - start) < 1800) {
+            // 2) 안 열리면 App Store 시트(지금 캡처처럼) 표시
+            fallbackTimer = setTimeout(() => {
+              const stillVisible = document.visibilityState === "visible";
+              const elapsed      = Date.now() - start;
+              if (stillVisible && elapsed < 1800) {
                 window.location.href = IOS_STORE;
               }
               cancel();
             }, 1500);
           }
         
-          document.getElementById("open-busanbank-btn").addEventListener("click", ()=>{
-            if (isAndroid) openAndroid({ withFallback: true });
-            else if (isIOS) openIOS({ withFallback: true });
-            else alert("모바일 기기에서 열어주세요.");
+          document.getElementById("open-busanbank-btn").addEventListener("click", () => {
+            if (isAndroid) return openAndroid(true);
+            if (isIOS)     return openIOS(true);
+            alert("모바일 기기에서 열어주세요.");
           });
         })();
     </script>
