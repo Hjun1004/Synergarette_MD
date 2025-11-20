@@ -268,12 +268,10 @@
 
     <script>
         (function(){
-          // 부산은행 모바일뱅킹
-          const ANDROID_MARKET = "market://details?id=kr.co.busanbank.mbp";         // 바로 Play 스토어 앱
-          const IOS_STORE      = "itms-apps://itunes.apple.com/app/id1445137607";   // 바로 App Store 앱
+          const ANDROID_PLAY = "https://play.google.com/store/apps/details?id=kr.co.busanbank.mbp";
+          const IOS_STORE    = "https://apps.apple.com/kr/app/id1445137607";
         
-          // 앱 실행만 시도하는 스킴 (실제 동작하는지 테스트 필요)
-          const DEEPLINK = "busanbank://";
+          const DEEPLINK = "busanbank://";  // 앱 스킴, 동작 안 될 수도 있음
         
           const isAndroid = /Android/i.test(navigator.userAgent);
           const isIOS     = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -285,20 +283,13 @@
             const cancelFallback = () => {
               if (fallbackTimer) clearTimeout(fallbackTimer);
               document.removeEventListener("visibilitychange", onVis);
-              window.removeEventListener("pagehide", cancelFallback);
-              window.removeEventListener("blur", cancelFallback);
             };
-        
             const onVis = () => {
-              // 앱으로 전환되면 hidden → 폴백 취소
               if (document.visibilityState === "hidden") cancelFallback();
             };
-        
             document.addEventListener("visibilitychange", onVis);
-            window.addEventListener("pagehide", cancelFallback);
-            window.addEventListener("blur", cancelFallback);
         
-            // 1) 부산은행 앱 스킴 호출
+            // 앱 스킴 호출
             window.location.href = DEEPLINK;
         
             if (!withFallback) {
@@ -306,14 +297,9 @@
               return;
             }
         
-            // 2) 일정 시간 안에 화면이 그대로면(=앱 없음) 바로 Play 스토어 앱으로
-            fallbackTimer = setTimeout(() => {
-              const stillVisible = document.visibilityState === "visible";
-              const elapsed = Date.now() - start;
-              if (stillVisible && elapsed < 1800) {
-                // 여기서 웹 URL 대신 market:// 사용 → 브라우저에서 구글 플레이 페이지 안 보이고
-                // 곧바로 Play 스토어 앱으로 전환
-                window.location.href = ANDROID_MARKET;
+            fallbackTimer = setTimeout(()=>{
+              if (document.visibilityState === "visible" && (Date.now() - start) < 1800) {
+                window.location.href = ANDROID_PLAY;
               }
               cancelFallback();
             }, 1200);
@@ -322,46 +308,34 @@
           function openIOS({ withFallback = true } = {}) {
             const start = Date.now();
             let fallbackTimer;
-        
-            const cancelFallback = () => {
+            const cancel = () => {
               if (fallbackTimer) clearTimeout(fallbackTimer);
               document.removeEventListener("visibilitychange", onVis);
-              window.removeEventListener("pagehide", cancelFallback);
-              window.removeEventListener("blur", cancelFallback);
             };
-        
             const onVis = () => {
-              if (document.visibilityState === "hidden") cancelFallback();
+              if (document.visibilityState === "hidden") cancel();
             };
-        
             document.addEventListener("visibilitychange", onVis);
-            window.addEventListener("pagehide", cancelFallback);
-            window.addEventListener("blur", cancelFallback);
         
-            // 1) 앱 스킴 호출
             window.location.href = DEEPLINK;
         
             if (!withFallback) {
-              setTimeout(cancelFallback, 2000);
+              setTimeout(cancel, 2000);
               return;
             }
         
-            // 2) 앱이 안 열렸으면 바로 App Store 앱으로
-            fallbackTimer = setTimeout(() => {
-              const stillVisible = document.visibilityState === "visible";
-              const elapsed = Date.now() - start;
-              if (stillVisible && elapsed < 1800) {
-                // itms-apps:// → 사파리 안 거치고 바로 앱스토어 앱
+            fallbackTimer = setTimeout(()=>{
+              if (document.visibilityState === "visible" && (Date.now() - start) < 1800) {
                 window.location.href = IOS_STORE;
               }
-              cancelFallback();
+              cancel();
             }, 1500);
           }
         
-          document.getElementById("open-busanbank-btn").addEventListener("click", () => {
-            if (isAndroid) return openAndroid({ withFallback: true });
-            if (isIOS)     return openIOS({ withFallback: true });
-            alert("모바일 기기에서 열어주세요.");
+          document.getElementById("open-busanbank-btn").addEventListener("click", ()=>{
+            if (isAndroid) openAndroid({ withFallback: true });
+            else if (isIOS) openIOS({ withFallback: true });
+            else alert("모바일 기기에서 열어주세요.");
           });
         })();
     </script>
