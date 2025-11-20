@@ -22,10 +22,51 @@
 </head>
 <body>
     <h2>안녕하세요. 시너가렛입니다.</h2>
-    <h2>소중한 팬분들의 시간을 아껴드리기 위해</h2>
+    <h2>팬분들의 시간을 아껴드리고자</h2>
     <h2>계좌번호를 복사하시고</h2>
     <h2>송금하실 은행을 선택해주시면 감사하겠습니다.</h2>
+    
+    <p id="account-text">110-541-118506 (신한은행 - 이동영)</p>
+    <button class="btn" id="copy-btn">계좌번호 복사하기</button>
 
+    <script>
+        document.getElementById("copy-btn").addEventListener("click", async () => {
+          const text = "110-541-118506 (신한은행 - 이동영)";
+        
+          // 최신 브라우저 복사 방식
+          if (navigator.clipboard && window.isSecureContext) {
+            try {
+              await navigator.clipboard.writeText(text);
+              alert("계좌번호가 복사되었습니다!");
+            } catch (err) {
+              fallbackCopy(text);
+            }
+          } else {
+            // 구형 브라우저 대응
+            fallbackCopy(text);
+          }
+        });
+        
+        function fallbackCopy(text) {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.style.position = "fixed";
+          textarea.style.left = "-999px";
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+        
+          try {
+            document.execCommand("copy");
+            alert("계좌번호가 복사되었습니다!");
+          } catch (err) {
+            alert("복사에 실패했습니다. 직접 복사해주세요.");
+          }
+        
+          document.body.removeChild(textarea);
+        }
+    </script>
+    
     <!-- <a href="shinhan-sbank://" class="btn">신한은행으로 송금하기</a><br> -->
     <button class="btn" id="open-sol-btn">신한 SOL 실행하기</button><br>
     <a class="btn" href="#" onclick="appLink(); return false;" >국민은행으로 송금하기</a><br>
